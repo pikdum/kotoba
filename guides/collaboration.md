@@ -221,10 +221,22 @@ The keys: `:instance` and `:document` (required); `:can`, `:write` or
 `:follow`, `false` for an editor that takes no part in following;
 `:on_behalf_of` and `:claims`, for your policy. Kotoba's own: `:undo`
 (`:editor`, the default, undoes in the editor; `:page`, the person's last
-change on the page; `false`, the browser's own), and `:socket` and
-`:max_channels` (above). Any other key raises,
+change on the page; `false`, the browser's own), `:socket` and
+`:max_channels` (above), and `:batch` (below). Any other key raises,
 so a typo does not go unnoticed. The editor signs its credentials once
 for the LiveView's life.
+
+The editor sends its changes in batches. A batch starts with a change
+and goes `:batch` milliseconds later, 80 by default, with every change
+made while it waited. A form's submit sends it at once. A longer delay
+sends fewer transactions, so the authority saves the document less
+often. With `batch: 2000`, someone who types four keys a second sends a
+transaction every two seconds instead of one for nearly every key, and
+the others in the document see the text up to two seconds later. A batch
+that has not gone yet is in the tab's draft (see Offline and retention),
+not on the server. If the person closes the tab or leaves the page during
+the delay, the batch goes the next time that tab opens the document, as
+after a reload. A new tab does not have it.
 
 `user` is your user, as your `Issho.Actor` implementation says them: its
 key (`"user:4"`), name and colour, the same person in every block of the
