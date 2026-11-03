@@ -347,3 +347,34 @@ test("typing in joined paragraphs sends only the typed character", async ({ page
   await expect(status(page)).toHaveText("Saved");
   expect(sent.map(op => op.op)).toEqual(["insert_text"]);
 });
+
+// The transactions a page sends, from now on.
+function sentTransactions(page: Page): Operation[][] {
+  const sent: Operation[][] = [];
+  page.on("websocket", socket => socket.on("framesent", frame => {
+    if (typeof frame.payload !== "string") return;
+    const [, , topic, event, payload] = JSON.parse(frame.payload) as [string, string, string, string, { tx?: { ops: Operation[] } }];
+    if (topic.startsWith("issho:") && event === "tx" && payload.tx) sent.push(payload.tx.ops);
+  }));
+  return sent;
+}
+
+test("typing sends one transaction per batch delay, 80 ms by default or the issho batch option", async ({ page }) => {
+  const sent = sentTransactions(page);
+  await open(page, crypto.randomUUID(), "Ada");
+  await editor(page).click();
+  await page.keyboard.type("abc", { delay: 300 });
+  await expect.poll(() => sent.length).toBe(3);
+  await expect(status(page)).toHaveText("Saved");
+  expect(sent).toHaveLength(3);
+
+  sent.length = 0;
+  await openEditor(page, `/collab?document=${crypto.randomUUID()}&name=Ada&batch=2000`, "shared_editor");
+  await expect(status(page)).toHaveText("Saved");
+  await editor(page).click();
+  await page.keyboard.type("abc", { delay: 300 });
+  await expect.poll(() => sent.length).toBe(1);
+  await expect(status(page)).toHaveText("Saved");
+  expect(sent).toHaveLength(1);
+  expect(sent[0].flatMap(op => op.op === "insert_text" ? op.atoms.map(atom => atom.text) : []).join("")).toBe("abc");
+});

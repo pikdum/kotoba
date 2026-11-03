@@ -1806,6 +1806,10 @@ defmodule KotobaDev.CollabLive do
       follow: params["follow"] != "false"
     ]
 
+    # ?batch=2000: the editor gathers its changes for 2 seconds before it sends them.
+    issho =
+      if params["batch"], do: issho ++ [batch: String.to_integer(params["batch"])], else: issho
+
     socket =
       assign(socket,
         document_id: id,
