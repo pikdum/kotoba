@@ -2,7 +2,7 @@ if Code.ensure_loaded?(Issho.Binding) do
   defmodule Kotoba.Issho.Engine do
     @moduledoc false
     # The document's state and operations: Kotoba.Collab.Document. Issho
-    # keeps the epoch, revision, receipts and journal around it.
+    # keeps the epoch, revision and receipts around it.
     @behaviour Issho.Engine
 
     alias Kotoba.Collab.Document

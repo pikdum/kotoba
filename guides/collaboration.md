@@ -266,8 +266,11 @@ def handle_event("save", %{"kotoba_collab" => %{"body_editor" => json}}, socket)
 end
 ```
 
-The journal can reconstruct an immutable accepted revision, even if another
-author edited again before the submit reached LiveView. The application owns
+The authority keeps the latest revisions (at least 128, `Issho.content/5`),
+so the submit publishes the revision it was accepted at even if another
+author edited again before it reached LiveView. An older revision, or one
+from before the document compacted, is `{:error, :unknown_revision}`: ask
+the person to save again. The application owns
 publishing transactions and permissions. An offline form cannot submit an
 accepted revision until it reconnects. Custom JavaScript save flows can call
 `document.getElementById("body_editor").kotobaCollab.flush()`.
@@ -560,7 +563,7 @@ the policy must be shared consistently across nodes.
 
 Backend edits use `Kotoba.Issho.change/4` with semantic operations through
 the same authority. Its `:author` is a key (`"system"`) or your actor
-(`current_user`), and is the change's author everywhere: the journal,
+(`current_user`), and is the change's author everywhere: its receipt,
 your document hook's `:by` and Issho's `"document.changed"` event. To retry idempotently, pass the original immutable
 transaction map, including its original base revision and ID. Whole-document
 `Kotoba.Live.push_content/3` is refused by collaborative editors because it
