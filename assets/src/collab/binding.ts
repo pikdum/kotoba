@@ -143,7 +143,7 @@ export class Binding {
     this.host.editor.getEditorState().read(() => {
       const root = this.host.api.lexical.$getRoot();
       const view = this.readElement(root, new Set(), state.root);
-      // `apply` copies the state it is given, so `working` is `state` until the first operation.
+      // `apply` never changes the state it is given, so `working` is `state` until the first operation.
       let working = state;
       // A capture looks up every character of the document, so each state it
       // reads is indexed once.
