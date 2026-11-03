@@ -157,6 +157,14 @@ class Client implements Collaboration {
       this.host.editable.removeEventListener("compositionstart", compositionStart);
       this.host.editable.removeEventListener("compositionend", compositionEnd);
     });
+    // A tab that closes or navigates away sends its waiting batch while its socket is still open.
+    // Firefox closes the socket before pagehide, so the batch goes on beforeunload. Where no
+    // beforeunload comes, it goes on pagehide, in the capture phase, which WebKit runs before
+    // Phoenix's own pagehide listener disconnects the socket.
+    const leaving = (): void => this.doc?.flush();
+    const unloads = ["beforeunload", "pagehide"];
+    unloads.forEach(event => window.addEventListener(event, leaving, true));
+    this.cleanups.push(() => unloads.forEach(event => window.removeEventListener(event, leaving, true)));
     this.watchForm();
     (this.host.element as HTMLElement & { kotobaCollab?: Collaboration }).kotobaCollab = this;
 
@@ -442,7 +450,12 @@ class Client implements Collaboration {
     if (this.room) {
       const place = this.room.awareness.state?.place as { doc?: string } | null | undefined;
       if (place?.doc === this.credentials.document_id) this.room.aware({ place: null });
-      void this.room.flushDrafts().finally(() => this.release());
+      // The server gets the waiting batch before the page leaves the room. A dead connection holds
+      // the room for 10 seconds at most, and the tab's draft keeps what did not go.
+      const room = this.room;
+      this.doc?.flush();
+      const sent = Promise.race([this.doc?.settled(), new Promise(resolve => setTimeout(resolve, 10_000))]);
+      void sent.then(() => room.flushDrafts()).finally(() => this.release());
     }
     this.presence.dispose();
     this.bar.remove();
