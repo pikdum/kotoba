@@ -32,6 +32,18 @@ A shared document sheds its deleted text when no one has it open.
   another epoch, as after Issho compacted it while the tab was away. Undoing
   a deletion from before showed characters that are gone, and stopped the
   editor with its draft to download.
+- Typing in a long shared document costs a third of the main thread it
+  did. Applying an operation in the browser copied the whole document, and
+  a keystroke applied three times; it now copies only what the operation
+  changes. A 20,000-character draft takes 44 ms a keystroke, from 120.
+
+### Fixed
+
+- Formatting part of what was just inserted, in the same transaction,
+  formats only that part in the browser too. Every character of an insert
+  shared one attributes object, so the browser formatted all of them, and
+  wrote the formatting into the insert of a pending transaction, which then
+  carried it to the server.
 
 ## [0.9.0] - 2026-10-26
 
