@@ -505,7 +505,8 @@ All participants replay that accepted order. This is a central authority
 protocol; independent peers cannot choose their own accepted histories.
 
 Nodes and characters retain identities through moves, link wrapping and
-paragraph splits. Deleted characters remain as insertion anchors. Deletions
+paragraph splits. Deleted characters remain as insertion anchors until Issho
+compacts the document (see Offline and retention). Deletions
 name the characters actually observed, so they preserve unseen concurrent
 insertions. Formatting changes patch individual marks, allowing concurrent
 bold and italic to combine. Concurrent writes to the same attribute follow
@@ -534,13 +535,21 @@ structure can require review. Kotoba freezes the draft and offers a JSON
 download; it preserves local work instead of silently replacing it. These
 conflicts do not currently have an interactive merge UI.
 
-The v1 store retains the initial snapshot, tombstones, receipts and accepted
-journal. It does not compact them. Issho's defaults limit a channel message
-to 1 MB (`:max_message_bytes`), a transaction to 1,000 operations, and
-stored state to 16 MB (`:max_document_bytes`). Size
-limits produce a rejected transaction, not a false acknowledgement. Plan
-retention and migrations before accepting unbounded documents. Removing
-tombstones or changing an epoch invalidates old pending work.
+When no one has had a document open for Issho's `:ttl`, and a quarter of its
+state is deleted text (at least 64 KB), Issho saves it without the deleted
+characters, the copies that moves leave behind and the deleted blocks, as a
+new epoch that continues the last (`Kotoba.Collab.Document.compact/1`). Ids
+stay, so selections, comments and the edits of a tab that was offline still
+apply. A tab whose edits name deleted text that went is told its draft needs
+review, and keeps it for download. Undo history does not cross an epoch.
+Issho's `compact: false` keeps every document's deleted characters.
+
+Issho's defaults limit a channel message to 1 MB (`:max_message_bytes`), a
+transaction to 1,000 operations, and stored state to 16 MB
+(`:max_document_bytes`). Size limits produce a rejected transaction, not a
+false acknowledgement. Plan retention and migrations before accepting
+unbounded documents. Changing an epoch any other way invalidates old pending
+work.
 
 Named branches, peer replication and branch review are not supported.
 

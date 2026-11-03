@@ -7,6 +7,26 @@ and Kotoba follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+A shared document sheds its deleted text when no one has it open.
+
+### Added
+
+- `Kotoba.Collab.Document.compact/1`: the state without what only past
+  operations need, its deleted characters, the copies that moves leave
+  behind, and its deleted blocks with what is under them. Every block and
+  character that remains keeps its id, attributes and versions, so
+  selections, comments and an offline tab's edits stay on the same words,
+  and an edit that names what went is refused. Kotoba's engine gives it to
+  an Issho that compacts idle documents (`compact/2`): a draft that has had as
+  much text deleted as it keeps is stored and opened at half the size.
+
+### Changed
+
+- A shared editor forgets its undo history when its document comes back on
+  another epoch, as after Issho compacted it while the tab was away. Undoing
+  a deletion from before showed characters that are gone, and stopped the
+  editor with its draft to download.
+
 ## [0.9.0] - 2026-10-26
 
 An agent's suggestion replaces what a person selected, a shared editor's
