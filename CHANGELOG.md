@@ -14,7 +14,9 @@ A shared document sheds its deleted text when no one has it open.
 - `:batch` in a shared editor's `issho` option: how many milliseconds the
   editor gathers its changes before it sends them, 80 by default. A longer
   delay sends fewer transactions, so the authority saves the document less
-  often, and the others in the document see the text that much later.
+  often, and the others in the document see the text that much later. An
+  editor sends its waiting batch when it goes away, and as its tab closes or
+  loads another page.
 - `Kotoba.Collab.Document.compact/1`: the state without what only past
   operations need, its deleted characters, the copies that moves leave
   behind, and its deleted blocks with what is under them. Every block and
