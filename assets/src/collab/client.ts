@@ -179,7 +179,7 @@ class Client implements Collaboration {
       this.cleanups.push(this.room.onStatus((status, reason) => this.roomStatus(status, reason)));
       this.cleanups.push(this.room.presence.on(() => this.people()));
       this.cleanups.push(this.room.awareness.on(() => this.people()));
-      this.doc = await this.room.open(id, { batch: { delay: 80, maxOps: 900 } });
+      this.doc = await this.room.open(id, { batch: { delay: this.credentials.batch ?? 80, maxOps: 900 } });
       if (this.disposed) return;
       this.epoch = this.doc.epoch;
       this.cleanups.push(this.doc.on(event => {
