@@ -287,11 +287,12 @@ def handle_event("save", %{"kotoba_collab" => %{"body_editor" => json}}, socket)
 end
 ```
 
-The authority keeps the latest revisions (at least 128, `Issho.content/5`),
-so the submit publishes the revision it was accepted at even if another
-author edited again before it reached LiveView. An older revision, or one
-from before the document compacted, is `{:error, :unknown_revision}`: ask
-the person to save again. The application owns
+The authority rebuilds that revision from its journal, so the submit
+publishes the revision it was accepted at even if another author edited
+again before it reached LiveView. An app that bounds the journal (Issho's
+`:journal`) or compacts idle documents (`:compact`) gets
+`{:error, :unknown_revision}` for a revision older than it kept: ask the
+person to save again. The application owns
 publishing transactions and permissions. An offline form cannot submit an
 accepted revision until it reconnects. Custom JavaScript save flows can call
 `document.getElementById("body_editor").kotobaCollab.flush()`.
