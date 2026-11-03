@@ -378,3 +378,89 @@ test("typing sends one transaction per batch delay, 80 ms by default or the issh
   expect(sent).toHaveLength(1);
   expect(sent[0].flatMap(op => op.op === "insert_text" ? op.atoms.map(atom => atom.text) : []).join("")).toBe("abc");
 });
+
+// The dev app's page of shared editors with one editor, which an author removes without leaving the page.
+const block = (page: Page) => page.locator("#editor_1 .kotoba-editable");
+
+async function openBlock(page: Page, id: string, name: string, query = ""): Promise<void> {
+  await openEditor(page, `/collab/many?document=${id}&count=1&name=${name}${query}`, "editor_1");
+  await expect(page.locator("#editor_1 [data-collab-status]")).toHaveText("Saved");
+}
+
+test("an editor removed during its batch delay sends the batch before it leaves", async ({ page, context }) => {
+  const id = crypto.randomUUID();
+  const sent = sentTransactions(page);
+  await openBlock(page, id, "Ada", "&batch=2000");
+  await block(page).click();
+  await page.keyboard.type("abc");
+  expect(sent).toHaveLength(0);
+  await page.locator("#many-remove").click();
+  await expect(page.locator("#editor_1")).toHaveCount(0);
+
+  const other = await context.newPage();
+  await openBlock(other, id, "Grace");
+  await expect(block(other)).toHaveText("abc");
+});
+
+test("an editor removed while a transaction is in flight sends its batch after that one, then leaves", async ({ page, context }) => {
+  const id = crypto.randomUUID();
+  // The tx and phx_leave the page sends on the editor's channel. From its first transaction until
+  // release(), what the server sends waits, so that transaction is in flight.
+  const events: string[] = [];
+  let release = (): void => {};
+  await page.routeWebSocket(/\/issho\/socket/, socket => {
+    const server = socket.connectToServer();
+    let held: (string | Buffer)[] | null = null;
+    let released = false;
+    release = () => {
+      released = true;
+      const answers = held ?? [];
+      held = null;
+      for (const message of answers) socket.send(message);
+    };
+    socket.onMessage(message => {
+      const [, , topic, event] = typeof message === "string" ? JSON.parse(message) as string[] : [];
+      if (topic === `issho:${id}-1` && (event === "tx" || event === "phx_leave")) events.push(event);
+      if (event === "tx" && !released) held ??= [];
+      server.send(message);
+    });
+    server.onMessage(message => { if (held) held.push(message); else socket.send(message); });
+  });
+  await openBlock(page, id, "Ada", "&batch=2000");
+  await block(page).click();
+  await page.keyboard.type("abc");
+  await expect.poll(() => events).toEqual(["tx"]);
+  await page.keyboard.type("def");
+  await page.locator("#many-remove").click();
+  await expect(page.locator("#editor_1")).toHaveCount(0);
+  expect(events).toEqual(["tx"]);
+
+  release();
+  await expect.poll(() => events).toEqual(["tx", "tx", "phx_leave"]);
+  const other = await context.newPage();
+  await openBlock(other, id, "Grace");
+  await expect(block(other)).toHaveText("abcdef");
+});
+
+test("a tab that navigates away or closes during the batch delay sends the batch as it goes", async ({ page, context }) => {
+  const id = crypto.randomUUID();
+  const sent = sentTransactions(page);
+  await openEditor(page, `/collab?document=${id}&name=Ada&batch=2000`, "shared_editor");
+  await expect(status(page)).toHaveText("Saved");
+  await editor(page).click();
+  await page.keyboard.type("abc");
+  expect(sent).toHaveLength(0);
+  await page.goto("/blocks");
+
+  const second = await context.newPage();
+  await openEditor(second, `/collab?document=${id}&name=Grace&batch=2000`, "shared_editor");
+  await expect(status(second)).toHaveText("Saved");
+  await expect(editor(second)).toHaveText("abc");
+  await focusEnd(second, editor(second));
+  await second.keyboard.type("def");
+  await second.close({ runBeforeUnload: true });
+
+  const third = await context.newPage();
+  await open(third, id, "Linus");
+  await expect(editor(third)).toHaveText("abcdef");
+});
